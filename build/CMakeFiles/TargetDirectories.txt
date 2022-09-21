@@ -1,0 +1,4 @@
+/home/phw/Dev/Stabilization/Realtime-Video-Stabilization/build/CMakeFiles/rebuild_cache.dir
+/home/phw/Dev/Stabilization/Realtime-Video-Stabilization/build/CMakeFiles/edit_cache.dir
+/home/phw/Dev/Stabilization/Realtime-Video-Stabilization/build/CMakeFiles/VideoStabilization.dir
+/home/phw/Dev/Stabilization/Realtime-Video-Stabilization/build/CMakeFiles/mine.dir
