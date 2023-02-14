@@ -32,11 +32,10 @@ add_library(mine SHARED
 )
 
 target_link_libraries(mine
-  ${EIGEN3_LIBS}
-  ${GLUT_LIBRARY}
   ${OpenCV_LIBS}
+  ${EIGEN3_LIBS}
   ${OPENGL_LIBRARIES}
-  ${Pangolin_LIBRARIES}
+  ${GLUT_LIBRARY}
 )
 
 add_executable(VideoStabilization
@@ -46,10 +45,8 @@ add_executable(VideoStabilization
 target_link_libraries(VideoStabilization
   ${OpenCV_LIBS}
   ${EIGEN3_LIBS}
-  ${GLUT_LIBRARY}
-  ${OpenCV_LIBS}
   ${OPENGL_LIBRARIES}
-  ${Pangolin_LIBRARIES}
+  ${GLUT_LIBRARY}
   mine
 )
 

@@ -1,5 +1,5 @@
-#include "videostab.h"
 #include <cmath>
+#include "videostab.h"
 
 //Parameters for Kalman Filter
 #define Q1 0.004
@@ -48,36 +48,57 @@ VideoStab::VideoStab()
 }
 
 //The main stabilization function
-Mat VideoStab::stabilize(Mat frame_1, Mat frame_2)
+cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
 {
-    cvtColor(frame_1, frame1, COLOR_BGR2GRAY);
-    cvtColor(frame_2, frame2, COLOR_BGR2GRAY);
+    cv::cvtColor(frame_1, frame1, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(frame_2, frame2, cv::COLOR_BGR2GRAY);
 
     int vert_border = HORIZONTAL_BORDER_CROP * frame_1.rows / frame_1.cols;
 
-    vector <Point2f> features1, features2;
-    vector <Point2f> goodFeatures1, goodFeatures2;
-    vector <uchar> status;
-    vector <float> err;
+    std::vector <cv::Point2f> features1, features2;
+    std::vector <cv::Point2f> goodFeatures1, goodFeatures2;
+    std::vector <uchar> status;
+    std::vector <float> err;
 
     //Estimating the features in frame1 and frame2
-    goodFeaturesToTrack(frame1, features1, 200, 0.01  , 30 );
-    calcOpticalFlowPyrLK(frame1, frame2, features1, features2, status, err );
-
-    for(size_t i=0; i < status.size(); i++)
+    cv::goodFeaturesToTrack(frame1, features1, 200, 0.01, 30 );
+    cv::calcOpticalFlowPyrLK(frame1, frame2, features1, features2, status, err);
+    
+    int indexCorrection = 0;
+    int N = status.size();
+    for(int i = 0; i < N; i++)
     {
-        if(status[i])
+        cv::Point2f pt = features2.at(i - indexCorrection);
+
+        if((status.at(i) == 0) || 
+            (pt.x < 0 || pt.x > (float)1920.0) || 
+            (pt.y < 0 || pt.y > (float)1080.0) ||
+            err.at(i) > 20)
         {
-            goodFeatures1.push_back(features1[i]);
-            goodFeatures2.push_back(features2[i]);
+            if((pt.x < 0 || pt.x > (float)1920.0) || 
+                (pt.y < 0 || pt.y > (float)1080.0) ||
+                err.at(i) > 20)
+            {
+                status.at(i) = 0;
+            }
+            features1.erase(features1.begin() + (i - indexCorrection));
+            features2.erase(features2.begin() + (i - indexCorrection));
+            indexCorrection++;
         }
     }
 
-    //All the parameters scale, angle, and translation are stored in affine
-    affine = estimateRigidTransform(goodFeatures1, goodFeatures2, false);
+    for(size_t i = 0; i < features1.size(); i++)
+    {
+        goodFeatures1.push_back(features1[i]);
+        goodFeatures2.push_back(features2[i]);
+    }
 
-    //cout<<affine;
-    //flush(cout);
+    //All the parameters scale, angle, and translation are stored in affine
+    affine = cv::estimateRigidTransform(goodFeatures1, goodFeatures2, false);
+    if(affine.rows == 0 || affine.cols == 0) return frame_2;
+    std::cout << affine << std::endl;
+    std::flush(std::cout);
+    
 
     //affine = affineTransform(goodFeatures1 , goodFeatures2);
 
@@ -134,27 +155,41 @@ Mat VideoStab::stabilize(Mat frame_1, Mat frame_2)
     //flush(cout);
 
     //Warp the new frame using the smoothed parameters
-    warpAffine(frame_1, smoothedFrame, smoothedMat, frame_2.size());
+    cv::warpAffine(frame_1, smoothedFrame, smoothedMat, frame_2.size());
 
     //Crop the smoothed frame a little to eliminate black region due to Kalman Filter
-    smoothedFrame = smoothedFrame(Range(vert_border, smoothedFrame.rows-vert_border), Range(HORIZONTAL_BORDER_CROP, smoothedFrame.cols-HORIZONTAL_BORDER_CROP));
+    smoothedFrame = smoothedFrame(cv::Range(vert_border, smoothedFrame.rows-vert_border), cv::Range(HORIZONTAL_BORDER_CROP, smoothedFrame.cols-HORIZONTAL_BORDER_CROP));
 
-    resize(smoothedFrame, smoothedFrame, frame_2.size());
+    cv::resize(smoothedFrame, smoothedFrame, frame_2.size());
 
     //Change the value of test if you want to see both unstabilized and stabilized video
     if(test)
     {
-        Mat canvas = Mat::zeros(frame_2.rows, frame_2.cols*2+10, frame_2.type());
+        cv::Mat canvas = cv::Mat::zeros(frame_2.rows, frame_2.cols*2+10, frame_2.type());
 
-        frame_1.copyTo(canvas(Range::all(), Range(0, smoothedFrame.cols)));
+        frame_1.copyTo(canvas(cv::Range::all(), cv::Range(0, smoothedFrame.cols)));
 
-        smoothedFrame.copyTo(canvas(Range::all(), Range(smoothedFrame.cols+10, smoothedFrame.cols*2+10)));
+        smoothedFrame.copyTo(canvas(cv::Range::all(), cv::Range(smoothedFrame.cols+10, smoothedFrame.cols*2+10)));
 
+        cv::Mat crop1 = frame_1(cv::Rect(frame_1.cols/4, frame_1.rows/4, frame_1.cols/1.5, frame_1.rows/1.5));
+        cv::Mat crop2 = smoothedFrame(cv::Rect(smoothedFrame.cols/4, smoothedFrame.rows/4, smoothedFrame.cols/1.5, smoothedFrame.rows/1.5));
+        cv::Mat canvas1 = cv::Mat::zeros(crop1.rows, crop1.cols*2+10, crop1.type());
+
+        crop1.copyTo(canvas1(cv::Range::all(), cv::Range(0, crop2.cols)));
+
+        crop2.copyTo(canvas1(cv::Range::all(), cv::Range(crop2.cols+10, crop2.cols*2+10)));
+       
         if(canvas.cols > 1920)
         {
-            resize(canvas, canvas, Size(canvas.cols/2, canvas.rows/2));
+            cv::resize(canvas, canvas, cv::Size(canvas.cols/2, canvas.rows/2));
         }
-        imshow("before and after", canvas);
+
+        if(canvas1.cols > 1920)
+        {
+            cv::resize(canvas1, canvas1, cv::Size(canvas.cols/2, canvas.rows/2));
+        }
+        cv::imshow("before and after", canvas);
+        cv::imshow("before and after crop", canvas1);
     }
 
     return smoothedFrame;

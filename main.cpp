@@ -1,19 +1,8 @@
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/opencv_modules.hpp"
-#include "opencv2/flann/flann.hpp"
-#include "opencv2/calib3d/calib3d.hpp"
-#include <opencv2/opencv.hpp>
-#include <iostream>
-#include <cmath>
 #include <fstream>
 #include <time.h>
-#include <videostab.h>
 
-using namespace std;
-using namespace cv;
+#include "calibration.h"
+#include "videostab.h"
 
 // This class redirects cv::Exception to our process so that we can catch it and handle it accordingly.
 class cvErrorRedirector {
@@ -39,18 +28,20 @@ int main(int argc, char **argv)
     VideoStab stab;
 
     //Initialize the VideoCapture object
-    VideoCapture cap("video_8floor.mp4");
+    cv::VideoCapture cap("/data/stabil/test/20230130/9/test_cam1.mkv");
 
-    Mat frame_2, frame2;
-    Mat frame_1, frame1;
+    cv::Mat frame_1, frame1;
+    cv::Mat frame_2, frame2;
 
     cap >> frame_1;
-    cvtColor(frame_1, frame1, COLOR_BGR2GRAY);
+    // intrinsic calib
+    cv::cvtColor(frame_1, frame1, cv::COLOR_BGR2GRAY);
+    frame_1 = cv::getOptimalNewCameraMatrix(camera_calibration_matrix_left, distortion_coefficients_left, frame_1.size(), 0);
 
-    Mat smoothedMat(2,3,CV_64F);
+    cv::Mat smoothedMat(2, 3, CV_64F);
 
-    VideoWriter outputVideo;
-    outputVideo.open("com.avi" , CV_FOURCC('X' , 'V' , 'I' , 'D'), 30 , frame_1.size());
+    cv::VideoWriter outputVideo;
+    outputVideo.open("com.avi" , cv::VideoWriter::fourcc('X' , 'V' , 'I' , 'D'), 30 , frame_1.size());
 
     while(true)
     {
@@ -62,23 +53,25 @@ int main(int argc, char **argv)
                 break;
             }
 
-            cvtColor(frame_2, frame2, COLOR_BGR2GRAY);
+            cv::cvtColor(frame_2, frame2, cv::COLOR_BGR2GRAY);
 
-            Mat smoothedFrame;
+            cv::Mat smoothedFrame;
 
             smoothedFrame = stab.stabilize(frame_1 , frame_2);
 
             outputVideo.write(smoothedFrame);
 
-            imshow("Stabilized Video" , smoothedFrame);
+            // imshow("Stabilized Video" , smoothedFrame);
 
-            waitKey(10);
+            char ch = cv::waitKey(33);
+            if(ch == 27) break; // ESC key
+		    if(ch == 32) if(cv::waitKey(0) == 27) break;; // Spacebar key
 
             frame_1 = frame_2.clone();
             frame2.copyTo(frame1);
         } catch (cv::Exception& e) {
             cap >> frame_1;
-            cvtColor(frame_1, frame1, COLOR_BGR2GRAY);
+            cv::cvtColor(frame_1, frame1, cv::COLOR_BGR2GRAY);
         }
 
     }
