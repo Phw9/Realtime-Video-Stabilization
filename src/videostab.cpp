@@ -1,9 +1,14 @@
 #include <cmath>
 #include "videostab.h"
+#include "opencv2/xfeatures2d.hpp"
+
+#define MAXCORNERS 500  // 1000
+#define MINDISTANCE 30  // 20
 
 //Parameters for Kalman Filter
-#define Q1 0.004
-#define R1 0.5
+#define Q1 0.004    // 0.004
+#define R1 0.5      // 0.5
+
 
 //To see the results of before and after stabilization simultaneously
 #define test 1
@@ -61,7 +66,18 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
     std::vector <float> err;
 
     //Estimating the features in frame1 and frame2
-    cv::goodFeaturesToTrack(frame1, features1, 200, 0.01, 30 );
+    cv::goodFeaturesToTrack(frame1, features1, MAXCORNERS, 0.01, MINDISTANCE);
+    
+    cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> brief1 = 
+                        cv::xfeatures2d::BriefDescriptorExtractor::create();
+    std::vector<cv::KeyPoint> kp1;
+    std::vector<uchar> idx1; cv::Mat desc1;
+    std::vector<std::vector<DTYPE>> vdesc1;
+    VecToKeyPoint(features1, kp1);
+    brief1->compute(frame_1, kp1, desc1);
+    features1.clear();  KeyPointToVec(kp1, features1);  
+    vdesc1.clear();  MatToVec(desc1, vdesc1);
+
     cv::calcOpticalFlowPyrLK(frame1, frame2, features1, features2, status, err);
     
     int indexCorrection = 0;
@@ -86,6 +102,19 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
             indexCorrection++;
         }
     }
+    cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> brief2 = 
+                cv::xfeatures2d::BriefDescriptorExtractor::create();
+    std::vector<cv::KeyPoint> kp2;
+    std::vector<uchar> idx2; cv::Mat desc2;
+    std::vector<std::vector<DTYPE>> vdesc2;
+    std::vector<uchar> delete2;
+    VecToKeyPoint(features2, kp2);
+    brief2->compute(frame_2, kp2, desc2);
+    delete2 = FindDeletePoints(kp2, features2);
+    DeletePoints(delete2, vdesc1, features1);
+    features2.clear(); vdesc2.clear();
+    KeyPointToVec(kp2, features2);
+    MatToVec(desc2, vdesc2);
 
     for(size_t i = 0; i < features1.size(); i++)
     {
@@ -188,6 +217,8 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
         {
             cv::resize(canvas1, canvas1, cv::Size(canvas.cols/2, canvas.rows/2));
         }
+        DrawFeatures(canvas, goodFeatures1, goodFeatures2);
+
         cv::imshow("before and after", canvas);
         cv::imshow("before and after crop", canvas1);
     }
