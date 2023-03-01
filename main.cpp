@@ -29,6 +29,7 @@ int main(int argc, char **argv)
 
     //Initialize the VideoCapture object
     cv::VideoCapture cap("/data/stabil/test/20230130/9/test_cam1.mkv");
+    cv::VideoCapture cap2("/data/stabil/test/20230130/9/test_cam2.mkv");
 
     cv::Mat frame_1, frame1;
     cv::Mat frame_2, frame2;
@@ -53,11 +54,9 @@ int main(int argc, char **argv)
                 break;
             }
 
-            cv::cvtColor(frame_2, frame2, cv::COLOR_BGR2GRAY);
-
             cv::Mat smoothedFrame;
 
-            smoothedFrame = stab.stabilize(frame_1 , frame_2);
+            smoothedFrame = stab.stabilize(frame_1, frame_2);
 
             outputVideo.write(smoothedFrame);
 

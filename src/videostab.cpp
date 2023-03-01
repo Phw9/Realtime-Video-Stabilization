@@ -2,8 +2,8 @@
 #include "videostab.h"
 #include "opencv2/xfeatures2d.hpp"
 
-#define MAXCORNERS 500  // 1000
-#define MINDISTANCE 30  // 20
+#define MAXCORNERS 200  // 1000
+#define MINDISTANCE 20  // 20
 
 //Parameters for Kalman Filter
 #define Q1 0.004    // 0.004
@@ -57,9 +57,7 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
 {
     cv::cvtColor(frame_1, frame1, cv::COLOR_BGR2GRAY);
     cv::cvtColor(frame_2, frame2, cv::COLOR_BGR2GRAY);
-
     int vert_border = HORIZONTAL_BORDER_CROP * frame_1.rows / frame_1.cols;
-
     std::vector <cv::Point2f> features1, features2;
     std::vector <cv::Point2f> goodFeatures1, goodFeatures2;
     std::vector <uchar> status;
@@ -74,7 +72,7 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
     std::vector<uchar> idx1; cv::Mat desc1;
     std::vector<std::vector<DTYPE>> vdesc1;
     VecToKeyPoint(features1, kp1);
-    brief1->compute(frame_1, kp1, desc1);
+    brief1->compute(frame1, kp1, desc1);
     features1.clear();  KeyPointToVec(kp1, features1);  
     vdesc1.clear();  MatToVec(desc1, vdesc1);
 
@@ -93,7 +91,7 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
         {
             if((pt.x < 0 || pt.x > (float)1920.0) || 
                 (pt.y < 0 || pt.y > (float)1080.0) ||
-                err.at(i) > 20)
+                err.at(i) > 1)
             {
                 status.at(i) = 0;
             }
@@ -102,6 +100,7 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
             indexCorrection++;
         }
     }
+
     cv::Ptr<cv::xfeatures2d::BriefDescriptorExtractor> brief2 = 
                 cv::xfeatures2d::BriefDescriptorExtractor::create();
     std::vector<cv::KeyPoint> kp2;
@@ -109,12 +108,40 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
     std::vector<std::vector<DTYPE>> vdesc2;
     std::vector<uchar> delete2;
     VecToKeyPoint(features2, kp2);
-    brief2->compute(frame_2, kp2, desc2);
+    brief2->compute(frame2, kp2, desc2);
     delete2 = FindDeletePoints(kp2, features2);
     DeletePoints(delete2, vdesc1, features1);
     features2.clear(); vdesc2.clear();
     KeyPointToVec(kp2, features2);
     MatToVec(desc2, vdesc2);
+
+    // // disc matching
+    // cv::BFMatcher matcher(cv::NORM_HAMMING);
+    // std::vector<cv::DMatch> matches;
+    // matcher.match(desc1, desc2, matches);
+    // int M = features1.size();
+    // std::pair<int,int> idxMatch;
+    // std::vector<std::pair<int,int>> temp;
+    // int indexCorrection1 = 0;
+
+    // for(int i = 0; i < M; i++)
+    // {
+    //     if(matches.at(i).distance < 10)
+    //     {
+    //         if(matches.at(i).queryIdx != matches.at(i).trainIdx)
+    //         {
+    //             features1.erase(features1.begin() + (i - indexCorrection));
+    //             features2.erase(features2.begin() + (i - indexCorrection));
+    //             indexCorrection++;
+    //         }
+    //     }
+    //     // else
+    //     // {
+    //     //     features1.erase(features1.begin() + (i - indexCorrection));
+    //     //     features2.erase(features2.begin() + (i - indexCorrection));
+    //     //     indexCorrection++;
+    //     // }
+    // }
 
     for(size_t i = 0; i < features1.size(); i++)
     {
@@ -125,10 +152,9 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
     //All the parameters scale, angle, and translation are stored in affine
     affine = cv::estimateRigidTransform(goodFeatures1, goodFeatures2, false);
     if(affine.rows == 0 || affine.cols == 0) return frame_2;
-    std::cout << affine << std::endl;
+    // std::cout << affine << std::endl;
     std::flush(std::cout);
     
-
     //affine = affineTransform(goodFeatures1 , goodFeatures2);
 
     dx = affine.at<double>(0,2);
@@ -195,6 +221,8 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
     if(test)
     {
         cv::Mat canvas = cv::Mat::zeros(frame_2.rows, frame_2.cols*2+10, frame_2.type());
+        cv::Mat graycanvas = cv::Mat::zeros(frame2.rows, frame2.cols, frame2.type());
+        frame2.copyTo(graycanvas(cv::Range::all(), cv::Range(0, graycanvas.cols)));
 
         frame_1.copyTo(canvas(cv::Range::all(), cv::Range(0, smoothedFrame.cols)));
 
@@ -208,21 +236,47 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
 
         crop2.copyTo(canvas1(cv::Range::all(), cv::Range(crop2.cols+10, crop2.cols*2+10)));
        
+        DrawFeatures(graycanvas, goodFeatures1, goodFeatures2);
+        
         if(canvas.cols > 1920)
         {
             cv::resize(canvas, canvas, cv::Size(canvas.cols/2, canvas.rows/2));
+            cv::resize(graycanvas, graycanvas, cv::Size(graycanvas.cols/2, graycanvas.rows/2));
         }
 
         if(canvas1.cols > 1920)
         {
             cv::resize(canvas1, canvas1, cv::Size(canvas.cols/2, canvas.rows/2));
         }
-        DrawFeatures(canvas, goodFeatures1, goodFeatures2);
+
+        std::cout << "Feature size: " << goodFeatures1.size() << ", ";
 
         cv::imshow("before and after", canvas);
         cv::imshow("before and after crop", canvas1);
-    }
+        cv::imshow("grayscale", graycanvas);
 
+        cv::Mat hist1, hist2;
+        int channels[] = {0};
+        int histSize[] = {256};
+        float range[] = {0, 256};
+        const float* ranges[] = {range};
+        cv::calcHist(&frame_1, 1, channels, cv::Mat(), hist1, 1, histSize, ranges);
+        cv::calcHist(&frame_2, 1, channels, cv::Mat(), hist2, 1, histSize, ranges);
+        cv::normalize(hist1, hist1, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+        cv::normalize(hist2, hist2, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+        double hist_score = cv::compareHist(hist1, hist2, cv::HISTCMP_BHATTACHARYYA);
+        
+        hist1 = hist1.t(); hist2 = hist2.t();
+        std::cout << hist1.size()<<", " << hist1.rows << ", " <<hist1.cols << std::endl;
+        cv::Mat hist_canvas = cv::Mat::zeros(hist1.rows+4, hist1.cols, hist1.type());
+        hist1.copyTo(hist_canvas(cv::Range(0, hist1.rows), cv::Range::all()));
+        hist2.copyTo(hist_canvas(cv::Range(hist2.rows+2, hist2.rows*2+2), cv::Range::all()));
+        cv::resize(hist_canvas, hist_canvas, cv::Size(hist_canvas.cols*3, hist_canvas.rows*100));
+        
+        cv::imshow("histogram", hist_canvas);
+        
+        std::cout << "hist_score : " << hist_score << std::endl; 
+    }
     return smoothedFrame;
 
 }
@@ -261,3 +315,4 @@ void VideoStab::Kalman_Filter(double *scaleX , double *scaleY , double *thetha ,
     errtransX = ( 1 - gain_transX ) * frame_1_errtransX;
     errtransY = ( 1 - gain_transY ) * frame_1_errtransY;
 }
+

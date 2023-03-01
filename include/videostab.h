@@ -183,6 +183,8 @@ cv::Mat DrawFeatures(cv::Mat& src,
                     std::vector<cv::Point2f>& afterPoints)
 {
     int N = beforePoints.size();
+    cv::cvtColor(src, src, cv::COLOR_GRAY2BGR);
+
     for (int i = 0; i < N; i++)
 	{
         // afterPoints.at(i).x = afterPoints.at(i).x + src.cols/2;
@@ -191,11 +193,12 @@ cv::Mat DrawFeatures(cv::Mat& src,
         rgb[0]=rand()%256;
         rgb[1]=rand()%256;
         rgb[2]=rand()%256;
-        cv::line(src, beforePoints[i], afterPoints[i],cv::Scalar(rgb[0],rgb[1],rgb[2]),1,8,0);
-        cv::circle(src, beforePoints[i], 5, cv::Scalar(rgb[0], rgb[1], rgb[2]), 1, 8, 0); //2d features  
+        cv::line(src, beforePoints[i], afterPoints[i],cv::Scalar(rgb[0],rgb[1],rgb[2]),2,8,0);
+        cv::circle(src, beforePoints[i], 10, cv::Scalar(rgb[0], rgb[1], rgb[2]), 1, 8, 0); //2d features  
         // circle(src, afterPoints[i], 6, Scalar(rgb[0], rgb[1], rgb[2]), 1, 8, 0); //3d points
-        cv::rectangle(src, cv::Rect(cv::Point(afterPoints[i].x-5,afterPoints[i].y-5),
-        cv::Point(afterPoints[i].x+5,afterPoints[i].y+5)), cv::Scalar(rgb[0],rgb[1],rgb[2]),1,8,0);//projection 3d points
+        cv::rectangle(src, cv::Rect(cv::Point(afterPoints[i].x-10,afterPoints[i].y-10),
+        cv::Point(afterPoints[i].x+10,afterPoints[i].y+10)), cv::Scalar(rgb[0],rgb[1],rgb[2]),2,8,0);//projection 3d points
     }
     return src;    
 }
+
