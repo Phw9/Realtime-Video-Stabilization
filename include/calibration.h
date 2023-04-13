@@ -2,6 +2,7 @@
 
 #include "opencv2/opencv.hpp"
 
+
 /*
 calibrationdata_20230202_1920x1080.txt
 */
@@ -37,3 +38,24 @@ cv::Mat projection_matrix_left(cv::Size(4, 3), CV_64FC1, projection_matrix_left_
 cv::Mat projection_matrix_right(cv::Size(4, 3), CV_64FC1, projection_matrix_right_data);
 cv::Mat rectification_matrix_left(cv::Size(3, 3), CV_64FC1, rectification_matrix_left_data);
 cv::Mat rectification_matrix_right(cv::Size(3, 3), CV_64FC1, rectification_matrix_right_data);
+
+void InverseSE3(cv::Mat& input, cv::Mat& output)
+{
+    
+    cv::Mat rot = input(cv::Rect(0, 0, 3, 3)).clone();
+    cv::Mat trans = input(cv::Rect(3, 0, 1, 3)).clone();
+    cv::Mat rot_inv = rot.inv();
+    cv::Mat rt = -rot_inv*trans;
+    cv::Mat temp;
+    temp.push_back(rot);
+    temp.push_back(rt);
+    
+
+    std::cout << rot << std::endl;
+    std::cout << rot_inv << std::endl;
+    std::cout << trans << std::endl;
+    std::cout << rt << std::endl;
+    std::cout << temp << std::endl;
+
+
+}
