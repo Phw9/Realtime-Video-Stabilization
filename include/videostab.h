@@ -1,16 +1,17 @@
 #pragma once
 
 #include <iostream>
+#include <string>
 #include "opencv2/opencv.hpp"
-
 #define DTYPE uchar
 
 class VideoStab
 {
 public:
     VideoStab();
+    VideoStab(const std::string& videoName);
     cv::VideoCapture capture;
-
+    std::string videoName_;
     cv::Mat frame2;
     cv::Mat frame1;
 
@@ -68,7 +69,7 @@ public:
     double sum_transX ;
     double sum_transY ;
 
-    cv::Mat stabilize(cv::Mat frame_1 , cv::Mat frame_2);
+    cv::Mat stabilize(cv::Mat frame_1 , cv::Mat frame_2, const std::string& videoName);
     void Kalman_Filter(double *scaleX , double *scaleY , double *thetha , double *transX , double *transY);
 };
 

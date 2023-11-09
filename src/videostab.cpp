@@ -51,9 +51,46 @@ VideoStab::VideoStab()
     transY = 0;
 
 }
+VideoStab::VideoStab(const std::string& videoName)
+{
+    videoName_ = videoName;
+    smoothedMat.create(2 , 3 , CV_64F);
 
+    k = 1;
+
+    errscaleX = 1;
+    errscaleY = 1;
+    errthetha = 1;
+    errtransX = 1;
+    errtransY = 1;
+
+    Q_scaleX = Q1;
+    Q_scaleY = Q1;
+    Q_thetha = Q1;
+    Q_transX = Q1;
+    Q_transY = Q1;
+
+    R_scaleX = R1;
+    R_scaleY = R1;
+    R_thetha = R1;
+    R_transX = R1;
+    R_transY = R1;
+
+    sum_scaleX = 0;
+    sum_scaleY = 0;
+    sum_thetha = 0;
+    sum_transX = 0;
+    sum_transY = 0;
+
+    scaleX = 0;
+    scaleY = 0;
+    thetha = 0;
+    transX = 0;
+    transY = 0;
+
+}
 //The main stabilization function
-cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
+cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2, const std::string& videoName)
 {
     cv::cvtColor(frame_1, frame1, cv::COLOR_BGR2GRAY);
     cv::cvtColor(frame_2, frame2, cv::COLOR_BGR2GRAY);
@@ -251,9 +288,9 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
 
         std::cout << "Feature size: " << goodFeatures1.size() << ", ";
 
-        cv::imshow("before and after", canvas);
-        cv::imshow("before and after crop", canvas1);
-        cv::imshow("grayscale", graycanvas);
+        cv::imshow(videoName + " before and after", canvas);
+        cv::imshow(videoName + " before and after crop", canvas1);
+        cv::imshow(videoName + " grayscale", graycanvas);
 
         cv::Mat hist1, hist2;
         int channels[] = {0};
@@ -273,7 +310,7 @@ cv::Mat VideoStab::stabilize(cv::Mat frame_1, cv::Mat frame_2)
         hist2.copyTo(hist_canvas(cv::Range(hist2.rows+2, hist2.rows*2+2), cv::Range::all()));
         cv::resize(hist_canvas, hist_canvas, cv::Size(hist_canvas.cols*3, hist_canvas.rows*100));
         
-        cv::imshow("histogram", hist_canvas);
+        cv::imshow(videoName + " histogram", hist_canvas);
         
         std::cout << "hist_score : " << hist_score << std::endl; 
     }
